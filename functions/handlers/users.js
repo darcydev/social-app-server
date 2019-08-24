@@ -1,5 +1,5 @@
 const firebase = require('firebase');
-const { db } = require('../util/admin');
+const { admin, db } = require('../util/admin');
 
 const config = require('../util/config');
 
@@ -19,6 +19,9 @@ exports.signup = (req, res) => {
   // check the data is valid
   const { valid, errors } = validateSignupData(newUser);
   if (!valid) return res.status(400).json(errors);
+
+  // default profile image for new Users
+  const noImg = 'no-img.png';
 
   let token;
   let userId;
@@ -49,6 +52,7 @@ exports.signup = (req, res) => {
         handle: newUser.handle,
         email: newUser.email,
         createdAt: new Date().toISOString(),
+        imageUrl: `https://firebasestorage.googleapis.com/v0/b/${config.storageBucket}/o/${noImg}?alt=media`,
         userId
       };
       return db.doc(`/users/${newUser.handle}`).set(userCreditionals);
@@ -100,3 +104,74 @@ exports.login = (req, res) => {
     });
 };
 // \.USER LOGIN
+
+// IMAGE UPLOAD
+exports.uploadImage = (req, res) => {
+  const BusBoy = require('busboy'); // parses incoming HTML form data
+  const path = require('path'); // default Node package
+  const os = require('os'); // default Node package
+  const fs = require('fs'); // default Node package
+
+  const busboy = new BusBoy({ headers: req.headers });
+
+  let imageFileName;
+  let imageToBeUploaded = {};
+
+  // listen for event when BusBoy finds a file to stream
+  // WARNING: callback function must maintain these five arguments
+  busboy.on('file', (fieldname, file, filename, encoding, mimetype) => {
+    // if User has attempted to upload a non-jpeg/png file, return a 400 error
+    if (mimetype !== 'image/jpeg' && mimetype !== 'image/png') {
+      return res.status(400).json({ error: 'Wrong file type submitted' });
+    }
+
+    const imageExtension = filename.split('.')[filename.split('.').length - 1];
+    // create a random number as filename, and append imageExtension to it (fe: 645235423674523.png)
+    imageFileName = `${Math.round(
+      Math.random() * 100000000000
+    )}.${imageExtension}`;
+    // os.tmpdir() is the temp directory
+    const filepath = path.join(os.tmpdir(), imageFileName);
+    // update the object
+    imageToBeUploaded = { filepath, mimetype };
+    // pipe() is a NodeJS method
+    // this will create the file
+    file.pipe(fs.createWriteStream(filepath));
+  });
+
+  // when busboy is finished parsing the image, upload the image to firebase
+  busboy.on('finish', () => {
+    // upload the file (we just created) to firebase
+    admin
+      .storage()
+      .bucket()
+      // upload the image to a firebase 'bucket'
+      .upload(imageToBeUploaded.filepath, {
+        resumable: false,
+        metadata: {
+          metadata: {
+            contentType: imageToBeUploaded.mimetype
+          }
+        }
+      })
+      .then(() => {
+        // alt=media, ensures that the image is shown on the browser (rather than downloaded to our computer)
+        const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${config.storageBucket}/o/${imageFileName}?alt=media`;
+        // update the imageUrl field with this image for this specific User in the db
+        // because we added the middleware (FBAuth) in index.js, it means that we have access to the user object,
+        // thus, we can get req.user.handle
+        // update() means that if it doesn't exist, it will create it
+        return db.doc(`/users/${req.user.handle}`).update({ imageUrl });
+      })
+      .then(() => {
+        return res.json({ message: 'Image uploaded successfully' });
+      })
+      .catch((err) => {
+        console.log(err);
+        return res.status(500).json({ error: err.code });
+      });
+  });
+  // after buyboy is finished, the raw bytes of the upload will be in req.rawBody
+  busboy.end(req.rawBody);
+};
+// \.IMAGE UPLOAD

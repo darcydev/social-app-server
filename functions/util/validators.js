@@ -1,7 +1,7 @@
 /**
- * A helper function to determine whether a string is a valid email
+ * A helper function to determine whether a string is a valid email according to a regex pattern
  * @param {str} email as string
- * @return {bool} bool - if email is valid returns true, else, returns false
+ * @return {boolean} whether an email is valid or not
  */
 const isEmail = (email) => {
   const regEx = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
@@ -14,7 +14,7 @@ const isEmail = (email) => {
 /**
  * A helper function to determine if a string is empty
  * @param {string} string
- * @return {bool} bool - if string is empty returns true, else, returns false
+ * @return {boolean} whether a string is empty or not
  */
 const isEmpty = (string) => string.trim() === '';
 
