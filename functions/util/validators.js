@@ -58,18 +58,16 @@ exports.validateLoginData = (data) => {
 exports.reduceUserDetails = (data) => {
   const userDetails = {};
 
-  /**
-   * Ensure that the data coming back from the front-end is not an empty string
-   */
+  /** Ensure that the data coming back from the front-end is not an empty string */
   if (!isEmpty(data.bio.trim())) {
     userDetails.bio = data.bio;
   }
   if (!isEmpty(data.website.trim())) {
-    // website.com -> http://website.com
-    userDetails.website =
-      data.website.trim().substring(0, 4) !== 'http'
-        ? `http://${data.website.trim()}` // if it doesn't include, 'http://', include it.
-        : data.website;
+    // if it doesn't include, 'http://', include it.
+    if (data.website.trim().substring(0, 4) !== 'http') {
+      // website.com -> http://website.com
+      userDetails.website = `http://${data.website.trim()}`;
+    } else userDetails.website = data.website;
   }
   if (!isEmpty(data.location.trim())) {
     userDetails.location = data.location;

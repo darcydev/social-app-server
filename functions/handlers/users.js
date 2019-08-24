@@ -11,7 +11,9 @@ const {
   reduceUserDetails
 } = require('../util/validators');
 
-// USER REGISTRATION
+// --------------- FUNCTIONS ---------------
+
+// ***** USER REGISTRATION ***** //
 exports.signup = (req, res) => {
   const newUser = {
     email: req.body.email,
@@ -75,9 +77,9 @@ exports.signup = (req, res) => {
       return res.status(500).json({ error: err.code });
     });
 };
-// \.USER REGISTRATION
+// ***** \.USER REGISTRATION ***** //
 
-// --------------- USER LOGIN ---------------
+// ***** USER LOGIN ***** //
 exports.login = (req, res) => {
   const user = {
     email: req.body.email,
@@ -107,9 +109,9 @@ exports.login = (req, res) => {
       return res.status(500).json({ error: err.code });
     });
 };
-// --------------- \.USER LOGIN ---------------
+// ***** \.USER LOGIN ***** //
 
-// --------------- IMAGE UPLOAD ---------------
+// ***** IMAGE UPLOAD ***** //
 exports.uploadImage = (req, res) => {
   const BusBoy = require('busboy'); // parses incoming HTML form data
   const path = require('path'); // default Node package
@@ -178,9 +180,9 @@ exports.uploadImage = (req, res) => {
   // after buyboy is finished, the raw bytes of the upload will be in req.rawBody
   busboy.end(req.rawBody);
 };
-// --------------- \.IMAGE UPLOAD ---------------
+// ***** \.IMAGE UPLOAD ***** //
 
-// --------------- ADD USER DETAILS ---------------
+// ***** ADD USER DETAILS ***** //
 exports.addUserDetails = (req, res) => {
   // prepare the data to be uploaded to firebase
   const userDetails = reduceUserDetails(req.body);
@@ -196,9 +198,9 @@ exports.addUserDetails = (req, res) => {
       return res.status(500).json({ error: err.code });
     });
 };
-// --------------- \.ADD USER DETAILS ---------------
+// ***** ADD USER DETAILS ***** //
 
-// --------------- GET OWN USER DETAILS ---------------
+// ***** GET OWN USER'S DETAILS ***** //
 exports.getAuthenticatedUser = (req, res) => {
   const userData = {};
   db.doc(`/users/${req.user.handle}`)
@@ -228,4 +230,6 @@ exports.getAuthenticatedUser = (req, res) => {
       return res.status(500).json({ error: err.code });
     });
 };
-// --------------- \.GET OWN USER DETAILS ---------------
+// ***** \.GET OWN USER'S DETAILS ***** //
+
+// --------------- \.FUNCTIONS ---------------

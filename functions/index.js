@@ -5,7 +5,16 @@ const app = require('express')();
 // MIDDLEWARE to prevent unauthorized access
 const FBAuth = require('./util/fbAuth');
 
-const { getAllScreams, postOneScream } = require('./handlers/screams');
+const {
+  getAllScreams,
+  postOneScream,
+  getScream,
+  commentOnScream,
+  likeScream,
+  unlikeScream,
+  deleteScream
+} = require('./handlers/screams');
+
 const {
   signup,
   login,
@@ -17,16 +26,23 @@ const {
 // --------------- SCREAM ROUTES ---------------
 // GET
 app.get('/screams', getAllScreams);
-app.get('/user', FBAuth, getAuthenticatedUser);
+app.get('/scream/:screamId', getScream); // intentionally not middleware protected, to allow Users to view screams without being logged in
+app.get('/scream/:screamId/like', FBAuth, likeScream);
+app.get('/scream/:screamId/unlike', FBAuth, unlikeScream);
 // POST
 app.post('/scream', FBAuth, postOneScream);
-app.post('/user/image', FBAuth, uploadImage);
-app.post('/user', FBAuth, addUserDetails);
+app.post('/scream/:screamId/comment', FBAuth, commentOnScream);
+// DELETE
+app.delete('/scream/:screamId', FBAuth, deleteScream);
 
 // --------------- USER ROUTES ---------------
+// GET
+app.get('/user', FBAuth, getAuthenticatedUser);
 // POST
 app.post('/signup', signup);
 app.post('/login', login);
+app.post('/user/image', FBAuth, uploadImage);
+app.post('/user', FBAuth, addUserDetails);
 
 // TODO: change to most appropriate image
 exports.api = functions.region('us-central1').https.onRequest(app);
