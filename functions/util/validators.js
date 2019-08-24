@@ -49,3 +49,31 @@ exports.validateLoginData = (data) => {
     valid: Object.keys(errors).length === 0 // returns a bool
   };
 };
+
+/**
+ * Prepare the data from the frontend to be inserted into the db
+ * @param object the data coming from the frontend
+ * @returns the same data in prepared format to be inserted in the backend db
+ */
+exports.reduceUserDetails = (data) => {
+  const userDetails = {};
+
+  /**
+   * Ensure that the data coming back from the front-end is not an empty string
+   */
+  if (!isEmpty(data.bio.trim())) {
+    userDetails.bio = data.bio;
+  }
+  if (!isEmpty(data.website.trim())) {
+    // website.com -> http://website.com
+    userDetails.website =
+      data.website.trim().substring(0, 4) !== 'http'
+        ? `http://${data.website.trim()}` // if it doesn't include, 'http://', include it.
+        : data.website;
+  }
+  if (!isEmpty(data.location.trim())) {
+    userDetails.location = data.location;
+  }
+
+  return userDetails;
+};

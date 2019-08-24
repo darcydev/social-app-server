@@ -5,7 +5,11 @@ const config = require('../util/config');
 
 firebase.initializeApp(config);
 
-const { validateSignupData, validateLoginData } = require('../util/validators');
+const {
+  validateSignupData,
+  validateLoginData,
+  reduceUserDetails
+} = require('../util/validators');
 
 // USER REGISTRATION
 exports.signup = (req, res) => {
@@ -73,7 +77,7 @@ exports.signup = (req, res) => {
 };
 // \.USER REGISTRATION
 
-// USER LOGIN
+// --------------- USER LOGIN ---------------
 exports.login = (req, res) => {
   const user = {
     email: req.body.email,
@@ -103,9 +107,9 @@ exports.login = (req, res) => {
       return res.status(500).json({ error: err.code });
     });
 };
-// \.USER LOGIN
+// --------------- \.USER LOGIN ---------------
 
-// IMAGE UPLOAD
+// --------------- IMAGE UPLOAD ---------------
 exports.uploadImage = (req, res) => {
   const BusBoy = require('busboy'); // parses incoming HTML form data
   const path = require('path'); // default Node package
@@ -124,12 +128,12 @@ exports.uploadImage = (req, res) => {
     if (mimetype !== 'image/jpeg' && mimetype !== 'image/png') {
       return res.status(400).json({ error: 'Wrong file type submitted' });
     }
-
+    // my.image.png => ['my', 'image', 'png']
     const imageExtension = filename.split('.')[filename.split('.').length - 1];
-    // create a random number as filename, and append imageExtension to it (fe: 645235423674523.png)
+    // create a random number as filename, and append imageExtension to it (fe: 95196238461720360.png)
     imageFileName = `${Math.round(
-      Math.random() * 100000000000
-    )}.${imageExtension}`;
+      Math.random() * 1000000000000
+    ).toString()}.${imageExtension}`;
     // os.tmpdir() is the temp directory
     const filepath = path.join(os.tmpdir(), imageFileName);
     // update the object
@@ -174,4 +178,54 @@ exports.uploadImage = (req, res) => {
   // after buyboy is finished, the raw bytes of the upload will be in req.rawBody
   busboy.end(req.rawBody);
 };
-// \.IMAGE UPLOAD
+// --------------- \.IMAGE UPLOAD ---------------
+
+// --------------- ADD USER DETAILS ---------------
+exports.addUserDetails = (req, res) => {
+  // prepare the data to be uploaded to firebase
+  const userDetails = reduceUserDetails(req.body);
+  // get that specific User's document,
+  db.doc(`/users/${req.user.handle}`)
+    // and update it with the userDetails
+    .update(userDetails)
+    .then(() => {
+      return res.json({ message: 'Details added successfully ' });
+    })
+    .catch((err) => {
+      console.log(err);
+      return res.status(500).json({ error: err.code });
+    });
+};
+// --------------- \.ADD USER DETAILS ---------------
+
+// --------------- GET OWN USER DETAILS ---------------
+exports.getAuthenticatedUser = (req, res) => {
+  const userData = {};
+  db.doc(`/users/${req.user.handle}`)
+    // retrieve the contents of a document
+    .get()
+    .then((doc) => {
+      // check that the User exists
+      if (doc.exists) {
+        // see dbschema.js for outline of db structure
+        userData.credentials = doc.data();
+        // return all the 'likes' associated with this User
+        return db
+          .collection('likes')
+          .where('userHandle', '==', req.user.handle)
+          .get();
+      }
+    })
+    .then((data) => {
+      userData.likes = [];
+      data.forEach((doc) => {
+        userData.likes.push(doc.data());
+      });
+      return res.json(userData);
+    })
+    .catch((err) => {
+      console.log(err);
+      return res.status(500).json({ error: err.code });
+    });
+};
+// --------------- \.GET OWN USER DETAILS ---------------
