@@ -12,7 +12,8 @@ const {
   commentOnScream,
   likeScream,
   unlikeScream,
-  deleteScream
+  deleteScream,
+  deleteComment
 } = require('./handlers/screams');
 
 const {
@@ -25,10 +26,11 @@ const {
 
 // --------------- SCREAM ROUTES ---------------
 // GET
-app.get('/screams', getAllScreams);
-app.get('/scream/:screamId', getScream); // intentionally not middleware protected, to allow Users to view screams without being logged in
+app.get('/screams', getAllScreams); // intentionally not middleware protected, so anyone can view screams
+app.get('/scream/:screamId', getScream); // intentionally not middleware protected, so anyone can view screams
 app.get('/scream/:screamId/like', FBAuth, likeScream);
 app.get('/scream/:screamId/unlike', FBAuth, unlikeScream);
+app.get('/scream/:commentId/uncomment', FBAuth, deleteComment);
 // POST
 app.post('/scream', FBAuth, postOneScream);
 app.post('/scream/:screamId/comment', FBAuth, commentOnScream);
