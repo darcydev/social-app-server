@@ -198,18 +198,56 @@ exports.addUserDetails = (req, res) => {
 };
 // \.Add User details
 
-// ***** GET OWN USER'S DETAILS ***** //
+// get any User's details
+exports.getUserDetails = (req, res) => {
+  const userData = {};
+
+  db.doc(`/users/${req.params.handle}`)
+    .get()
+    .then((doc) => {
+      if (!doc.exists) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      userData.user = doc.data();
+      return db
+        .collection('screams')
+        .where('userHandle', '==', req.params.handle)
+        .orderBy('createdAt', 'desc')
+        .get();
+    })
+    .then((data) => {
+      userData.screams = [];
+      data.forEach((doc) => {
+        userData.screams.push({
+          body: doc.data().body,
+          createdAt: doc.data().createdAt,
+          userHandle: doc.data().userHandle,
+          userImage: doc.data().userImage,
+          likeCount: doc.data().likeCount,
+          commentCount: doc.data().commentCount,
+          screamId: doc.id
+        });
+      });
+      return res.json(userData);
+    })
+    .catch((err) => {
+      console.error(err);
+      return res.status(500).json({ error: err.code });
+    });
+};
+// \.get any User's details
+
+// get own User's details
 exports.getAuthenticatedUser = (req, res) => {
   const userData = {};
   db.doc(`/users/${req.user.handle}`)
-    // retrieve the contents of a document
     .get()
     .then((doc) => {
       // check that the User exists
       if (doc.exists) {
         // see dbschema.js for outline of db structure
         userData.credentials = doc.data();
-        // return all the 'likes' associated with this User
+        // return all the User's 'likes'
         return db
           .collection('likes')
           .where('userHandle', '==', req.user.handle)
@@ -221,6 +259,27 @@ exports.getAuthenticatedUser = (req, res) => {
       data.forEach((doc) => {
         userData.likes.push(doc.data());
       });
+      // return 10 of the User's 'notifications'
+      return db
+        .collection('notifications')
+        .where('recipient', '==', req.user.handle)
+        .orderBy('createdAt', 'desc')
+        .limit(10)
+        .get();
+    })
+    .then((data) => {
+      userData.notifications = [];
+      data.forEach((doc) => {
+        userData.notifications.push({
+          recipient: doc.data().recipient,
+          sender: doc.data().sender,
+          createdAt: doc.data().createdAt,
+          screamId: doc.data().screamId,
+          type: doc.data().type,
+          read: doc.data().read,
+          notificationId: doc.id
+        });
+      });
       return res.json(userData);
     })
     .catch((err) => {
@@ -228,4 +287,26 @@ exports.getAuthenticatedUser = (req, res) => {
       return res.status(500).json({ error: err.code });
     });
 };
-// ***** \.GET OWN USER'S DETAILS ***** //
+// \.get own User's details
+
+// mark notifications read
+// When the User opens a dropdown of notifications, we will an array of those
+// notification ID's to this API, to mark them as read
+exports.markNotificationsRead = (req, res) => {
+  // batch() is for when to need to update multiple documents
+  const batch = db.batch();
+  req.body.forEach((notificationId) => {
+    const notification = db.doc(`/notifications/${notificationId}`);
+    batch.update(notification, { read: true });
+  });
+  batch
+    .commit()
+    .then(() => {
+      return res.json({ message: 'Notifications marked read' });
+    })
+    .catch((err) => {
+      console.error(err);
+      return res.status(500).json({ error: err.code });
+    });
+};
+// \.mark notifications read
