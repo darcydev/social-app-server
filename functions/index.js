@@ -54,36 +54,43 @@ exports.createNotificationOnLike = functions
   .region('us-central1')
   .firestore.document('likes/{id}')
   .onCreate((snapshot) => {
-    db.doc(`/screams/${snapshot.data().screamId}`)
-      .get()
-      .then((doc) => {
-        if (doc.exists) {
-          // create a notification with the snapshot.id (which is the likeDoc id)
-          return db.doc(`/notifications/${snapshot.id}`).set({
-            createdAt: new Date().toISOString(),
-            recipient: doc.data().userHandle,
-            sender: snapshot.data().userHandle,
-            type: 'like',
-            read: false,
-            screamId: doc.id
-          });
-        }
-      })
-      // the reason we don't need to send back any response is because this is a database trigger, and not an API endpoint
-      .then(() => {})
-      .catch((err) => {
-        console.error(err);
-      });
+    return (
+      db
+        .doc(`/screams/${snapshot.data().screamId}`)
+        .get()
+        .then((doc) => {
+          if (
+            doc.exists &&
+            doc.data().userHandle !== snapshot.data().userHandle // no notification if User likes their own scream
+          ) {
+            // create a notification with the snapshot.id (which is the likeDoc id)
+            return db.doc(`/notifications/${snapshot.id}`).set({
+              createdAt: new Date().toISOString(),
+              recipient: doc.data().userHandle,
+              sender: snapshot.data().userHandle,
+              type: 'like',
+              read: false,
+              screamId: doc.id
+            });
+          }
+        })
+        // the reason we don't need to send back any response is because this is a database trigger, and not an API endpoint
+        .catch((err) => console.error(err))
+    );
   });
 
 exports.createNotificationOnComment = functions
   .region('us-central1')
   .firestore.document('comments/{id}')
   .onCreate((snapshot) => {
-    db.doc(`/screams/${snapshot.data().screamId}`)
+    return db
+      .doc(`/screams/${snapshot.data().screamId}`)
       .get()
       .then((doc) => {
-        if (doc.exists) {
+        if (
+          doc.exists &&
+          doc.data().userHandle !== snapshot.data().userHandle
+        ) {
           // create a notification with the snapshot.id (which is the commentDoc id)
           return db.doc(`/notifications/${snapshot.id}`).set({
             createdAt: new Date().toISOString(),
@@ -95,10 +102,7 @@ exports.createNotificationOnComment = functions
           });
         }
       })
-      .then(() => {})
-      .catch((err) => {
-        console.error(err);
-      });
+      .catch((err) => console.error(err));
   });
 
 // DELETE NOTIFICATIONS
@@ -107,12 +111,10 @@ exports.deleteNotificationOnUnLike = functions
   .region('us-central1')
   .firestore.document('likes/{id}')
   .onDelete((snapshot) => {
-    db.doc(`/notifications/${snapshot.id}`)
+    return db
+      .doc(`/notifications/${snapshot.id}`)
       .delete()
-      .then(() => {})
-      .catch((err) => {
-        console.error(err);
-      });
+      .catch((err) => console.error(err));
   });
 
 exports.deleteNotificationOnUnLike = functions
@@ -125,4 +127,66 @@ exports.deleteNotificationOnUnLike = functions
       .catch((err) => {
         console.error(err);
       });
+  });
+
+/**
+ * When a User changes their profile image, update all their screams with the new image
+ */
+exports.onUserImageChange = functions
+  .region('us-central1')
+  .firestore.document('/users/{userId}')
+  .onUpdate((change) => {
+    if (change.before.data().imageUrl !== change.after.data().imageUrl) {
+      const batch = db.batch();
+      return db
+        .collection('screams')
+        .where('userHandle', '==', change.before.data().handle)
+        .get()
+        .then((data) => {
+          data.forEach((doc) => {
+            const scream = db.doc(`/screams/${doc.id}`);
+            batch.update(scream, { userImage: change.after.data().imageUrl });
+          });
+          return batch.commit();
+        });
+    }
+    return true; // WARNING: have to return something, to avoid an error on Firebase functions log
+  });
+
+exports.onScreamDelete = functions
+  .region('us-central1')
+  .firestore.document('/screams/{screamId}')
+  .onDelete((snapshot, context) => {
+    const { screamId } = context.params;
+    const batch = db.batch();
+
+    return db
+      .collection('comments')
+      .where('screamId', '==', screamId)
+      .get()
+      .then((data) => {
+        data.forEach((doc) => {
+          batch.delete(db.doc(`/comments/${doc.id}`));
+        });
+        return db
+          .collection('likes')
+          .where('screamId', '==', screamId)
+          .get();
+      })
+      .then((data) => {
+        data.forEach((doc) => {
+          batch.delete(db.doc(`/likes/${doc.id}`));
+        });
+        return db
+          .collection('notifications')
+          .where('screamId', '==', screamId)
+          .get();
+      })
+      .then((data) => {
+        data.forEach((doc) => {
+          batch.delete(db.doc(`/notifications/${doc.id}`));
+        });
+        return batch.commit();
+      })
+      .catch((err) => console.error(err));
   });
